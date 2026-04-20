@@ -216,7 +216,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: "${{ needs.helm-charts-build.outputs.istio-minor-version }}-${{ env.TAG_NAME }},${{ needs.helm-charts-build.outputs.istio-minor-version }}-latest,${{ needs.helm-charts-build.outputs.istio-version }}"
           registry: ghcr.io
-          dry-run: ${{ github.event.pull_request.user.login == 'renovate[bot]' ||  github.event_name == 'push' }} 
+          dry-run: ${{ github.event.pull_request.user.login == 'renovate[bot]' }} 
         env:
            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
