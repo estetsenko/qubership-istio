@@ -6,7 +6,7 @@ CHARTS_DIR=./helm-templates/qubership-istio/charts
 for chart in cni istiod ztunnel; do
 TGZ=$(ls ${CHARTS_DIR}/${chart}-*.tgz)
 tar -xzf "${TGZ}" -C "${CHARTS_DIR}"
-cp tweak/${chart}/zzzz_tweak.yaml "${CHARTS_DIR}/${chart}/templates/"
+cp tweak/zzzz_tweak.yaml "${CHARTS_DIR}/${chart}/templates/"
 tar -czf "${TGZ}" -C "${CHARTS_DIR}" "${chart}"
 rm -rf "${CHARTS_DIR}/${chart}"
 done
