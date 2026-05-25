@@ -1,0 +1,16 @@
+{{- if .Values.MONITORING_ENABLED }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istiod-monitor
+spec:
+  targetLabels:
+    - app
+  selector:
+    matchLabels:
+      istio: pilot
+  endpoints:
+    - port: http-monitoring
+      interval: {{ .Values.monitoring.scrapeInterval }}
+  {{- end }}

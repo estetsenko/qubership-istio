@@ -1,0 +1,15 @@
+{{- if .Values.MONITORING_ENABLED }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ztunnel-monitor
+spec:
+  podMetricsEndpoints:
+    - interval: {{ .Values.monitoring.scrapeInterval }}
+      path: /metrics
+      port: ztunnel-stats
+  selector:
+    matchLabels:
+      app: ztunnel
+  {{- end }}
