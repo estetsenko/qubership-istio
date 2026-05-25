@@ -215,7 +215,7 @@ jobs:
           download-artifact-path: ./helm-templates/qubership-istio/
           download-artifact-merge-multiple: true
           platforms: linux/amd64,linux/arm64
-          tags: "${{ needs.helm-charts-build.outputs.istio-minor-version }}-${{ env.TAG_NAME }},${{ needs.helm-charts-build.outputs.istio-minor-version }}-latest,${{ needs.helm-charts-build.outputs.istio-version }}"
+          tags: "${{ needs.helm-charts-build.outputs.istio-minor-version }}-${{ env.TAG_NAME }}${{ github.ref == 'refs/heads/main' && format(',{0}-latest,{1}', needs.helm-charts-build.outputs.istio-minor-version, needs.helm-charts-build.outputs.istio-version) || '' }}"
           registry: ghcr.io
           dry-run: ${{ github.event.pull_request.user.login == 'renovate[bot]' }}
         env:
