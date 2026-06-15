@@ -1,0 +1,25 @@
+name: qubership-istio-fork
+version: 1.0.0
+description: APM project for qubership-istio-fork
+author: Evgenii Stetsenko
+marketplace:
+  name: qubership-istio
+  owner:
+    name: estetsenko
+    url: https://github.com/estetsenko
+
+  outputs:
+    claude: {}
+
+  versioning:
+    strategy: per_package
+
+  packages:
+  - name: grafana-dashboard-limits
+    description: Overlay CPU/memory resource limits on Grafana resource-usage panels.
+    source: ./agent-packages/grafana-dashboard-limits
+    version: 1.0.0
+    tags:
+    - grafana
+    - observability
+    - kubernetes
