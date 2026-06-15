@@ -3,7 +3,7 @@ description: Overlay CPU/memory resource limits onto a Grafana dashboard's resou
 argument-hint: <dashboard URL | file path | pasted JSON>
 ---
 
-Apply the `grafana-dashboard-limits` skill to add resource-limit overlays
+Apply the `add-grafana-dashboard-limits` skill to add resource-limit overlays
 to a Grafana dashboard.
 
 Dashboard source: $ARGUMENTS
