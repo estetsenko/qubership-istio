@@ -1,0 +1,20 @@
+{
+  "name": "qubership-istio",
+  "owner": {
+    "name": "estetsenko",
+    "url": "https://github.com/estetsenko"
+  },
+  "plugins": [
+    {
+      "name": "grafana-dashboard-limits",
+      "description": "Overlay CPU/memory resource limits on Grafana resource-usage panels.",
+      "version": "1.0.0",
+      "tags": [
+        "grafana",
+        "observability",
+        "kubernetes"
+      ],
+      "source": "./agent-packages/grafana-dashboard-limits"
+    }
+  ]
+}
