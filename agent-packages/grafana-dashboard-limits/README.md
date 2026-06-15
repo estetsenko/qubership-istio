@@ -28,6 +28,6 @@ Then run `apm compile` to merge the trigger into your `AGENTS.md` /
   to identify the CPU/memory panels, add the limit targets, and style
   them as red reference lines while leaving the rest of the dashboard
   untouched.
-- A [`/grafana-limits`](.apm/prompts/grafana-limits.prompt.md) slash
-  command to run the migration on demand against a dashboard URL, file
-  path, or pasted JSON.
+- A [`/add-grafana-dashboard-limits`](.apm/prompts/add-grafana-dashboard-limits.prompt.md)
+  slash command to run the migration on demand against a dashboard URL,
+  file path, or pasted JSON.
