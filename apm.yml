@@ -1,12 +1,12 @@
-name: qubership-istio-fork
+name: qubership-istio
 version: 1.0.0
-description: APM project for qubership-istio-fork
-author: Evgenii Stetsenko
+description: APM project for qubership-istio
+author: Netcracker
 marketplace:
   name: qubership-istio
   owner:
-    name: estetsenko
-    url: https://github.com/estetsenko
+    name: Netcracker
+    url: https://github.com/Netcracker
   outputs:
     claude: {}
   versioning:
