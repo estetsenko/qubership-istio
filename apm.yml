@@ -2,21 +2,3 @@ name: qubership-istio
 version: 1.0.0
 description: APM project for qubership-istio
 author: Netcracker
-marketplace:
-  name: qubership-istio
-  owner:
-    name: Netcracker
-    url: https://github.com/Netcracker
-  outputs:
-    claude: {}
-  versioning:
-    strategy: per_package
-  packages:
-  - name: grafana-dashboard-limits
-    description: Overlay CPU/memory resource limits on Grafana resource-usage panels.
-    source: ./agent-packages/grafana-dashboard-limits
-    version: 1.0.0
-    tags:
-    - grafana
-    - observability
-    - kubernetes

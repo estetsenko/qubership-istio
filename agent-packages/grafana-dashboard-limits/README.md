@@ -7,18 +7,12 @@ limits onto Grafana resource-usage panels, using
 ## Install
 
 ```sh
-apm install estetsenko/qubership-istio/agent-packages/grafana-dashboard-limits
+apm install Netcracker/qubership-istio/agent-packages/grafana-dashboard-limits --target claude
 ```
 
-Or, after registering the marketplace:
-
-```sh
-apm marketplace add estetsenko/qubership-istio
-apm install grafana-dashboard-limits
-```
-
-Then run `apm compile` to merge the trigger into your `AGENTS.md` /
-`CLAUDE.md`.
+This deploys the package's primitives into the consuming repo
+(`.claude/skills/`, `.claude/commands/`, `.claude/rules/`, and the
+merged `CLAUDE.md`). Re-run it to pick up a new version.
 
 ## What you get
 
@@ -31,3 +25,21 @@ Then run `apm compile` to merge the trigger into your `AGENTS.md` /
 - A [`/add-grafana-dashboard-limits`](.apm/prompts/add-grafana-dashboard-limits.prompt.md)
   slash command to run the migration on demand against a dashboard URL,
   file path, or pasted JSON.
+
+## Usage
+
+On demand — run the slash command with a dashboard URL, repo file path,
+or pasted JSON:
+
+```text
+/add-grafana-dashboard-limits helm-templates/qubership-istio/dashboards/
+```
+
+Automatic — the instruction triggers the skill on its own whenever you
+ask the agent to add resource limits while it's working on a Grafana
+dashboard `*.json`, so no command is required.
+
+Either path produces the same change: a `kube_pod_container_resource_limits`
+target on the Memory Usage and CPU Usage panels, styled as a thin red
+reference line, with every other panel and all top-level fields left
+untouched.
