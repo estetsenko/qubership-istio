@@ -73,22 +73,15 @@ you used):
 
 ### 4. Apply the CPU limit overlay
 
-Add to `targets[]` of the CPU panel, using the next unused `refId`
-(commonly `B`):
+Reuse the same target and override shape on the CPU panel, changing only:
 
-```json
-{
-  "datasource": { "type": "prometheus", "uid": "$datasource" },
-  "alias": "limit",
-  "expr": "kube_pod_container_resource_limits{container=\"<CONTAINER>\",pod=~\"<POD_PATTERN>\",resource=\"cpu\"}",
-  "legendFormat": "CPU Limit ({{pod}})",
-  "refId": "B"
-}
-```
+- `resource` → `"cpu"`
+- `legendFormat` → `"CPU Limit ({{pod}})"`
+- `refId` → the next unused letter (commonly `B`), in both the target
+  and its `byFrameRefID` override
 
-Add the matching `fieldConfig.overrides[]` entry, swapping the `refId`
-options and leaving the red-line properties identical to the memory
-override.
+The red-line override properties (`lineWidth`, `fillOpacity`, `color`)
+are identical to the memory override.
 
 ### 5. Preserve everything else
 
@@ -99,13 +92,18 @@ overrides.
 
 ## Reference values
 
-| Dashboard                    | Container   | Pod pattern  |
-|------------------------------|-------------|--------------|
-| Istio control plane (istiod) | `discovery` | `istiod-.*`  |
-| Generic k8s app              | app name    | `<app>-.*`   |
+| Dashboard                    | Container     | Pod pattern  |
+|------------------------------|---------------|--------------|
+| Istio control plane (istiod) | `discovery`   | `istiod-.*`  |
+| Istio ztunnel                | `istio-proxy` | `ztunnel-.*` |
+| Generic k8s app              | app name      | `<app>-.*`   |
 
-For the Istio dashboard (grafana.com/api/dashboards/7645) the memory
-panel is id 4 and the CPU panel is id 6.
+Both Istio dashboards use the same `Memory Usage` / `CPU Usage` panel
+titles, so the panel-identification step holds across them; only the
+`container` / `pod` selectors differ. For the control-plane dashboard
+(grafana.com/api/dashboards/7645) the memory panel is id 4 and the CPU
+panel is id 6 — panel ids are not stable across dashboards, so match by
+title or `expr`, not by id.
 
 ## Common pitfalls
 

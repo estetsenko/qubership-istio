@@ -1,6 +1,6 @@
 ---
 description: Adapting Grafana dashboard JSON to overlay CPU/memory resource limits.
-applyTo: "**/*.json"
+applyTo: "**/dashboards/**/*.json"
 ---
 
 When editing a Grafana dashboard JSON to add resource-limit overlays —
