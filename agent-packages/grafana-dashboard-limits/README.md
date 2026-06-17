@@ -7,7 +7,7 @@ limits onto Grafana resource-usage panels, using
 ## Install
 
 ```sh
-apm install Netcracker/qubership-istio/agent-packages/grafana-dashboard-limits --target claude
+apm install ./agent-packages/grafana-dashboard-limits --target claude
 ```
 
 This deploys the package's primitives into the consuming repo
