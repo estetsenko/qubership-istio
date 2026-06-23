@@ -9,16 +9,11 @@ Adds CPU and memory resource-limit overlays to Grafana dashboard panels,
 using `kube_pod_container_resource_limits` metrics rendered as a red,
 unfilled reference line.
 
-## What this skill does
-
 Given a Grafana dashboard JSON (a URL, pasted JSON, or a file in the
-repo), produce an adapted version where the resource-usage panels carry
-limit overlays:
-
-1. **Memory Usage panel** — adds a `kube_pod_container_resource_limits`
-   target for `resource="memory"`, styled as a red line with no fill.
-2. **CPU Usage panel** — adds a `kube_pod_container_resource_limits`
-   target for `resource="cpu"`, styled as a red line with no fill.
+repo), produce an adapted version where the **Memory Usage** and **CPU
+Usage** panels each carry a `kube_pod_container_resource_limits` target
+(`resource="memory"` / `resource="cpu"`) styled as a red, unfilled
+reference line.
 
 ## Process
 
