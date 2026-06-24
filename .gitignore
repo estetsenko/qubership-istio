@@ -1,10 +1,4 @@
 /.idea
 
-# Claude Code local config
-.claude/
-
-# APM generated cache
-.apm/
-
 # APM dependencies
 apm_modules/
