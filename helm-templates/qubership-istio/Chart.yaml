@@ -6,17 +6,17 @@ type: application
 # version (or `0.0.0-<branch>` for a dev build) and `appVersion` with the
 # bundled istio version. See .github/workflows/docker-publish.yml.
 version: 0.0.1
-appVersion: "1.30.2"
+appVersion: "1.30.3"
 dependencies:
   - name: base
-    version: "1.30.2"
+    version: "1.30.3"
     repository: "https://istio-release.storage.googleapis.com/charts"
   - name: cni
-    version: "1.30.2"
+    version: "1.30.3"
     repository: "https://istio-release.storage.googleapis.com/charts"
   - name: istiod
-    version: "1.30.2"
+    version: "1.30.3"
     repository: "https://istio-release.storage.googleapis.com/charts"
   - name: ztunnel
-    version: "1.30.2"
+    version: "1.30.3"
     repository: "https://istio-release.storage.googleapis.com/charts"
