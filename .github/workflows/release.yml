@@ -42,7 +42,7 @@ on:
         required: false
         default: ""
       dry-run:
-        description: "Resolve and build without pushing the tag, the image, or the release page."
+        description: "Dry run."
         type: boolean
         default: false
 
