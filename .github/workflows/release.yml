@@ -42,7 +42,7 @@ on:
         required: false
         default: ""
       dry-run:
-        description: "Dry run."
+        description: "Resolve and build without pushing the tag, the image, or the release page."
         type: boolean
         default: false
 
@@ -78,17 +78,25 @@ jobs:
           ISTIO_VERSION="$(yq e '.dependencies[0].version' "${CHART}")"
           echo "istio-version=${ISTIO_VERSION}" >> "$GITHUB_OUTPUT"
 
-          LATEST_TAG="$(gh api "repos/${REPOSITORY}/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
-          if [ -z "${LATEST_TAG}" ] || [ "${LATEST_TAG}" = "null" ]; then
-            echo "::notice::No previous release found. Starting from 0.0.0."
-            LATEST_TAG=""
+          # The baseline is the highest SemVer git tag, not the latest GitHub
+          # release. The two diverge whenever a tag exists without a published
+          # release behind it — a draft, a prerelease, or a run that tagged and
+          # then failed before publishing. Reading releases there would keep
+          # recomputing a version whose tag is already taken, and every later
+          # run would die on the collision check below.
+          LATEST_TAG="$(git tag --list --sort=-v:refname \
+            | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -n 1 || true)"
+
+          if [ -z "${LATEST_TAG}" ]; then
+            echo "::notice::No SemVer tag found. Starting from 0.0.0."
             LATEST_VERSION="0.0.0"
           else
             LATEST_VERSION="${LATEST_TAG#v}"
           fi
 
           if ! [[ "${LATEST_VERSION}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            echo "::error::Latest release tag '${LATEST_TAG}' is not a SemVer version. Use version-type 'explicit'."
+            echo "::error::Latest tag '${LATEST_TAG}' is not a SemVer version. Use version-type 'explicit'."
             exit 1
           fi
           MAJOR="${BASH_REMATCH[1]}"; MINOR="${BASH_REMATCH[2]}"; PATCH="${BASH_REMATCH[3]}"
@@ -97,8 +105,8 @@ jobs:
 
           if [ "${BUMP}" = "auto" ]; then
             # Derive the bump from the istio chart dependency at the previous
-            # release tag. No previous tag, or an unreadable Chart.yaml there,
-            # falls back to patch.
+            # tag. No previous tag, or an unreadable Chart.yaml there, falls
+            # back to patch.
             PREV_ISTIO=""
             if [ -n "${LATEST_TAG}" ]; then
               PREV_ISTIO="$(git show "${LATEST_TAG}:${CHART}" 2>/dev/null | yq e '.dependencies[0].version' - 2>/dev/null || true)"
@@ -145,7 +153,7 @@ jobs:
 
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           {
-            echo "**Previous release**: ${LATEST_TAG:-none}"
+            echo "**Previous tag**: ${LATEST_TAG:-none}"
             echo "**Istio version**: ${ISTIO_VERSION}"
             echo "**Bump**: ${BUMP}"
             echo "**New version**: ${NEW_VERSION}"
@@ -191,10 +199,12 @@ jobs:
       version: ${{ needs.resolve-version.outputs.version }}
       dry-run: ${{ inputs.dry-run }}
 
-  # A failed build leaves no release behind, so drop the tag it was cut for.
+  # A failed build or a failed publish leaves no release behind, so drop the tag
+  # it was cut for. Leaving it would strand the tag ahead of every release and
+  # make the next run collide with a version it can no longer reach.
   rollback-tag:
-    needs: [resolve-version, create-tag, build-and-publish]
-    if: ${{ failure() && needs.create-tag.result == 'success' && !inputs.dry-run }}
+    needs: [resolve-version, create-tag, build-and-publish, github-release]
+    if: ${{ always() && failure() && needs.create-tag.result == 'success' && !inputs.dry-run }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -217,5 +227,8 @@ jobs:
     with:
       version: ${{ needs.resolve-version.outputs.version }}
       tag: ${{ needs.resolve-version.outputs.version }}
-      publish: "false"
+      # Without this the reusable defaults to main, and the notes would be
+      # drafted from a branch other than the one being released.
+      ref: ${{ github.ref_name }}
+      publish: "true"
       config-name: release-drafter-config.yml
