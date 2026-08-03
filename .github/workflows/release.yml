@@ -217,5 +217,5 @@ jobs:
     with:
       version: ${{ needs.resolve-version.outputs.version }}
       tag: ${{ needs.resolve-version.outputs.version }}
-      publish: "true"
+      publish: "false"
       config-name: release-drafter-config.yml
