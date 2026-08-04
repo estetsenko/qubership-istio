@@ -57,7 +57,7 @@ on:
         required: false
         default: ""
       dry-run:
-        description: "Dry run."
+        description: "Resolve and build without pushing the tag, the image, or the release page."
         type: boolean
         default: false
 
@@ -73,6 +73,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       istio-version: ${{ steps.resolve.outputs.istio-version }}
       sha: ${{ steps.resolve.outputs.sha }}
+      is-default-branch: ${{ steps.resolve.outputs.is-default-branch }}
     steps:
       - name: Checkout the branch being released
         uses: actions/checkout@v6
@@ -130,6 +131,19 @@ jobs:
             exit 1
           fi
           MAJOR="${BASH_REMATCH[1]}"; MINOR="${BASH_REMATCH[2]}"; PATCH="${BASH_REMATCH[3]}"
+
+          # Nothing has landed since the last release, so a new version would
+          # describe the same tree. Releasing anyway is how one commit ends up
+          # carrying two versions, which then makes the baseline on any branch
+          # cut from it ambiguous.
+          if [ -n "${LATEST_TAG}" ]; then
+            COMMITS_SINCE="$(git rev-list --count "${LATEST_TAG}..HEAD")"
+            if [ "${COMMITS_SINCE}" -eq 0 ]; then
+              echo "::error::'${BRANCH}' is already released as ${LATEST_TAG} — no commits have landed since. Merge something first, or release a branch that is ahead."
+              exit 1
+            fi
+            echo "::notice::${COMMITS_SINCE} commit(s) since ${LATEST_TAG}."
+          fi
 
           BUMP="${VERSION_TYPE}"
 
@@ -250,7 +264,22 @@ jobs:
             fi
           fi
 
-          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          # The baseline is scoped to this branch, but tags are repository-wide,
+          # so two branches can arrive at the same next version. That means the
+          # branch overlaps a line it does not contain — usually a support
+          # branch cut from the wrong point — and continuing would publish a
+          # version whose predecessor is missing from this history.
+          if git rev-parse -q --verify "refs/tags/${NEW_VERSION}" > /dev/null 2>&1; then
+            echo "::error::Tag '${NEW_VERSION}' already exists on a line '${BRANCH}' does not contain. The baseline here is ${LATEST_TAG:-none}, the highest tag reachable from this branch, so ${NEW_VERSION} was taken elsewhere. Branch a support line from the tag of the line it supports, then release again."
+            exit 1
+          fi
+
+          echo "::notice::Resolved version ${NEW_VERSION} from ${LATEST_TAG:-no previous tag} as a ${BUMP} release."
+
+          {
+            echo "version=${NEW_VERSION}"
+            echo "is-default-branch=${IS_DEFAULT_BRANCH}"
+          } >> "$GITHUB_OUTPUT"
           {
             echo "**Previous tag**: ${LATEST_TAG:-none}"
             echo "**Istio version**: ${ISTIO_VERSION}"
@@ -300,8 +329,13 @@ jobs:
     uses: ./.github/workflows/docker-publish.yml
     with:
       version: ${{ needs.resolve-version.outputs.version }}
-      ref: ${{ needs.resolve-version.outputs.sha }}
+      # Build from the tag just created, so the logs name the release rather
+      # than a bare SHA. The tag is immutable and points at the resolved commit,
+      # so this pins the same tree. A dry run never pushes a tag, so it falls
+      # back to the commit itself.
+      ref: ${{ inputs.dry-run && needs.resolve-version.outputs.sha || format('refs/tags/{0}', needs.resolve-version.outputs.version) }}
       dry-run: ${{ inputs.dry-run }}
+      latest: ${{ needs.resolve-version.outputs.is-default-branch == 'true' }}
 
   # A failed build or a failed publish leaves no release behind, so drop the tag
   # it was cut for. Leaving it would strand the tag ahead of every release and
@@ -335,4 +369,7 @@ jobs:
       # drafted from a branch other than the one being released.
       ref: ${{ inputs.branch }}
       publish: "true"
+      # A maintenance release is older than the tip, so it must not take the
+      # "Latest" badge from the newest release.
+      latest: ${{ needs.resolve-version.outputs.is-default-branch }}
       config-name: release-drafter-config.yml
