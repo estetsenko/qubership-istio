@@ -7,6 +7,10 @@
 # workflow is dispatched on. Its head commit is resolved once and every later
 # job pins that SHA.
 #
+# Only the default branch opens a new major or minor line. Any other branch is
+# treated as a maintenance line: it may move the patch part alone, and a release
+# that would move more than that fails rather than being downgraded.
+#
 # qubership-istio carries its own SemVer, separate from the istio version it
 # bundles. The bump rule is:
 #
@@ -32,7 +36,7 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: "Branch to release from. Independent of the branch this workflow is dispatched on."
+        description: "Branch to release from, independent of the branch this workflow is dispatched on. Anything other than the default branch takes patch releases only."
         type: string
         default: main
         required: true
@@ -82,6 +86,8 @@ jobs:
         env:
           VERSION_TYPE: ${{ inputs.version-type }}
           EXPLICIT_VERSION: ${{ inputs.version }}
+          BRANCH: ${{ inputs.branch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -190,6 +196,28 @@ jobs:
             fi
           fi
 
+          # Only the default branch opens a new major or minor line. Every other
+          # branch is a maintenance line and may move the patch part alone, so a
+          # release cut there can never jump ahead of the line it forked from.
+          IS_DEFAULT_BRANCH=true
+          if [ -n "${DEFAULT_BRANCH}" ] && [ "${BRANCH}" != "${DEFAULT_BRANCH}" ]; then
+            IS_DEFAULT_BRANCH=false
+          fi
+
+          # BUMP already holds the resolved bump, so this one check covers an
+          # explicitly requested major or minor and an auto run whose signals
+          # resolved to one. Releasing a patch instead would ship a breaking or
+          # feature change under a version that promises neither, so this fails
+          # rather than quietly downgrading.
+          if [ "${IS_DEFAULT_BRANCH}" = false ] && [ "${BUMP}" != "patch" ] && [ "${BUMP}" != "explicit" ]; then
+            if [ "${VERSION_TYPE}" = "auto" ]; then
+              echo "::error::Changes since ${LATEST_TAG:-the first commit} amount to a ${BUMP} release, which '${BRANCH}' cannot cut — it is a maintenance branch and takes patch releases only. Release from '${DEFAULT_BRANCH}', or keep ${BUMP}-level changes off '${BRANCH}'."
+            else
+              echo "::error::'${BRANCH}' is a maintenance branch and takes patch releases only. Cut a ${BUMP} release from '${DEFAULT_BRANCH}'."
+            fi
+            exit 1
+          fi
+
           case "${BUMP}" in
             explicit)
               if [ -z "${EXPLICIT_VERSION}" ]; then
@@ -210,6 +238,16 @@ jobs:
           if ! [[ "${NEW_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Resolved version '${NEW_VERSION}' is not a SemVer version."
             exit 1
+          fi
+
+          # Catches an explicit version that would open a new line off a
+          # maintenance branch, which the version-type gate above cannot see.
+          if [ "${IS_DEFAULT_BRANCH}" = false ]; then
+            IFS='.' read -r N_MAJ N_MIN _ <<< "${NEW_VERSION}"
+            if [ "${N_MAJ}" != "${MAJOR}" ] || [ "${N_MIN}" != "${MINOR}" ]; then
+              echo "::error::'${BRANCH}' is a maintenance branch, so '${NEW_VERSION}' must stay on ${MAJOR}.${MINOR}.x. Cut it from '${DEFAULT_BRANCH}' instead."
+              exit 1
+            fi
           fi
 
           echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
