@@ -24,6 +24,11 @@ on:
         required: false
         type: string
         default: ""
+      ref:
+        description: "Commit or branch to build. Defaults to the commit the run started at."
+        required: false
+        type: string
+        default: ""
       dry-run:
         description: "Build without pushing the image."
         required: false
@@ -78,6 +83,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Resolve chart version and image tags
         id: version
@@ -171,6 +178,8 @@ jobs:
   integration-test:
     needs: [ helm-charts-build ]
     uses: ./.github/workflows/integration-test.yml
+    with:
+      ref: ${{ inputs.ref }}
 
   multiplatform_build:
     needs: [ helm-charts-build, integration-test ]
@@ -186,6 +195,7 @@ jobs:
               "build_context": "."
             }]
           checkout: true
+          ref: ${{ inputs.ref }}
           download-artifact: true
           download-artifact-name: helm-templates
           download-artifact-path: ./helm-templates/qubership-istio/
