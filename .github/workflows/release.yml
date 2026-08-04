@@ -1,7 +1,11 @@
 ---
-# Cuts a qubership-istio release: resolve the version, tag the dispatched
-# commit, build and publish the transfer image, then publish the GitHub release
-# page with notes drafted from the merged pull requests.
+# Cuts a qubership-istio release: resolve the version, tag the head of the
+# branch being released, build and publish the transfer image, then publish the
+# GitHub release page with notes drafted from the merged pull requests.
+#
+# The `branch` input picks what gets released, independently of the branch this
+# workflow is dispatched on. Its head commit is resolved once and every later
+# job pins that SHA.
 #
 # qubership-istio carries its own SemVer, separate from the istio version it
 # bundles. The bump rule is:
@@ -22,13 +26,18 @@
 # default to `v<version>`.
 
 name: Release
-run-name: "Release (${{ inputs.version-type }})${{ inputs.dry-run && ' - dry run' || '' }} by ${{ github.actor }}"
+run-name: "Release ${{ inputs.branch }} (${{ inputs.version-type }})${{ inputs.dry-run && ' - dry run' || '' }} by ${{ github.actor }}"
 
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: "Branch to release from. Independent of the branch this workflow is dispatched on."
+        type: string
+        default: main
+        required: true
       version-type:
-        description: "Which part of the version to bump. 'auto' derives it from the istio version change since the last release."
+        description: "Which part of the version to bump. 'auto' derives it from the istio version change and the conventional commits since the last tag."
         type: choice
         options:
           - auto
@@ -59,10 +68,12 @@ jobs:
     outputs:
       version: ${{ steps.resolve.outputs.version }}
       istio-version: ${{ steps.resolve.outputs.istio-version }}
+      sha: ${{ steps.resolve.outputs.sha }}
     steps:
-      - name: Checkout code
+      - name: Checkout the branch being released
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.branch }}
           persist-credentials: false
           fetch-depth: 0
 
@@ -78,7 +89,15 @@ jobs:
 
           CHART=helm-templates/qubership-istio/Chart.yaml
           ISTIO_VERSION="$(yq e '.dependencies[0].version' "${CHART}")"
-          echo "istio-version=${ISTIO_VERSION}" >> "$GITHUB_OUTPUT"
+
+          # Every downstream job pins this commit rather than re-resolving the
+          # branch, so a push landing mid-run cannot split the tag, the image,
+          # and the release across different trees.
+          HEAD_SHA="$(git rev-parse HEAD)"
+          {
+            echo "istio-version=${ISTIO_VERSION}"
+            echo "sha=${HEAD_SHA}"
+          } >> "$GITHUB_OUTPUT"
 
           # The baseline is the highest SemVer git tag, not the latest GitHub
           # release. The two diverge whenever a tag exists without a published
@@ -86,7 +105,10 @@ jobs:
           # then failed before publishing. Reading releases there would keep
           # recomputing a version whose tag is already taken, and every later
           # run would die on the collision check below.
-          LATEST_TAG="$(git tag --list --sort=-v:refname \
+          # --merged HEAD keeps the baseline on this branch's own release line.
+          # A repo-wide tag list would let a tag cut elsewhere — a newer minor
+          # on main, say — become the baseline for a maintenance branch.
+          LATEST_TAG="$(git tag --list --merged HEAD --sort=-v:refname \
             | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
             | head -n 1 || true)"
 
@@ -205,7 +227,7 @@ jobs:
       - name: Check that the tag is free
         uses: netcracker/qubership-workflow-hub/actions/tag-action@b6bee6f61fdc8b367777c1173fc852a58878a6a7 # v2.5.0
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ steps.resolve.outputs.sha }}
           tag-name: ${{ steps.resolve.outputs.version }}
           create-tag: false
           check-tag: true
@@ -223,7 +245,7 @@ jobs:
         with:
           # Tag the exact commit the run started at, so the tag and the
           # published image are built from the same tree.
-          ref: ${{ github.sha }}
+          ref: ${{ needs.resolve-version.outputs.sha }}
           tag-name: ${{ needs.resolve-version.outputs.version }}
           tag-message: "qubership-istio ${{ needs.resolve-version.outputs.version }} (istio ${{ needs.resolve-version.outputs.istio-version }})"
           check-tag: true
@@ -240,6 +262,7 @@ jobs:
     uses: ./.github/workflows/docker-publish.yml
     with:
       version: ${{ needs.resolve-version.outputs.version }}
+      ref: ${{ needs.resolve-version.outputs.sha }}
       dry-run: ${{ inputs.dry-run }}
 
   # A failed build or a failed publish leaves no release behind, so drop the tag
@@ -255,7 +278,7 @@ jobs:
       - name: Delete tag
         uses: netcracker/qubership-workflow-hub/actions/tag-action@b6bee6f61fdc8b367777c1173fc852a58878a6a7 # v2.5.0
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.resolve-version.outputs.sha }}
           tag-name: ${{ needs.resolve-version.outputs.version }}
           delete-tag: true
         env:
@@ -272,6 +295,6 @@ jobs:
       tag: ${{ needs.resolve-version.outputs.version }}
       # Without this the reusable defaults to main, and the notes would be
       # drafted from a branch other than the one being released.
-      ref: ${{ github.ref_name }}
+      ref: ${{ inputs.branch }}
       publish: "true"
       config-name: release-drafter-config.yml
