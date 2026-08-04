@@ -73,7 +73,6 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       istio-version: ${{ steps.resolve.outputs.istio-version }}
       sha: ${{ steps.resolve.outputs.sha }}
-      is-default-branch: ${{ steps.resolve.outputs.is-default-branch }}
     steps:
       - name: Checkout the branch being released
         uses: actions/checkout@v6
@@ -251,10 +250,7 @@ jobs:
             fi
           fi
 
-          {
-            echo "version=${NEW_VERSION}"
-            echo "is-default-branch=${IS_DEFAULT_BRANCH}"
-          } >> "$GITHUB_OUTPUT"
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           {
             echo "**Previous tag**: ${LATEST_TAG:-none}"
             echo "**Istio version**: ${ISTIO_VERSION}"
@@ -304,13 +300,8 @@ jobs:
     uses: ./.github/workflows/docker-publish.yml
     with:
       version: ${{ needs.resolve-version.outputs.version }}
-      # Build from the tag just created, so the logs name the release rather
-      # than a bare SHA. The tag is immutable and points at the resolved commit,
-      # so this pins the same tree. A dry run never pushes a tag, so it falls
-      # back to the commit itself.
-      ref: ${{ inputs.dry-run && needs.resolve-version.outputs.sha || format('refs/tags/{0}', needs.resolve-version.outputs.version) }}
+      ref: ${{ needs.resolve-version.outputs.sha }}
       dry-run: ${{ inputs.dry-run }}
-      latest: ${{ needs.resolve-version.outputs.is-default-branch == 'true' }}
 
   # A failed build or a failed publish leaves no release behind, so drop the tag
   # it was cut for. Leaving it would strand the tag ahead of every release and
@@ -344,7 +335,4 @@ jobs:
       # drafted from a branch other than the one being released.
       ref: ${{ inputs.branch }}
       publish: "true"
-      # A maintenance release is older than the tip, so it must not take the
-      # "Latest" badge from the newest release.
-      latest: ${{ needs.resolve-version.outputs.is-default-branch }}
       config-name: release-drafter-config.yml
