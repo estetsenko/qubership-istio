@@ -30,7 +30,7 @@
 # default to `v<version>`.
 
 name: Release
-run-name: "Release ${{ inputs.branch }} (${{ inputs.version-type }})${{ inputs.dry-run && ' - dry run' || '' }} by ${{ github.actor }}"
+run-name: "Release ${{ inputs.branch }} (${{ inputs.version-type }})${{ inputs.dry-run && ' - dry run' || '' }}${{ inputs.skip-tests && ' - no tests' || '' }} by ${{ github.actor }}"
 
 on:
   workflow_dispatch:
@@ -58,6 +58,10 @@ on:
         default: ""
       dry-run:
         description: "Resolve and build without pushing the tag, the image, or the release page."
+        type: boolean
+        default: false
+      skip-tests:
+        description: "Skip the integration matrix. Speeds up a rehearsal; a real release then ships untested."
         type: boolean
         default: false
 
@@ -336,6 +340,7 @@ jobs:
       ref: ${{ inputs.dry-run && needs.resolve-version.outputs.sha || format('refs/tags/{0}', needs.resolve-version.outputs.version) }}
       dry-run: ${{ inputs.dry-run }}
       latest: ${{ needs.resolve-version.outputs.is-default-branch == 'true' }}
+      skip-tests: ${{ inputs.skip-tests }}
 
   # A failed build or a failed publish leaves no release behind, so drop the tag
   # it was cut for. Leaving it would strand the tag ahead of every release and
