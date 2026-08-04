@@ -44,16 +44,6 @@ on:
         required: false
         type: boolean
         default: false
-      latest:
-        description: "Tag the release image `latest`. False for a maintenance line, which must not move `latest` off the newest release."
-        required: false
-        type: boolean
-        default: false
-      skip-tests:
-        description: "Skip the integration matrix. Publishes an image no cluster has run."
-        required: false
-        type: boolean
-        default: false
   workflow_dispatch:
     inputs:
       skip-tests:

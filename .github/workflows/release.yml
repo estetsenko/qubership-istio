@@ -57,7 +57,7 @@ on:
         required: false
         default: ""
       dry-run:
-        description: 'Dry run'
+        description: 'Dry run (no tag, image, or release page)'
         type: boolean
         default: false
       skip-tests:
