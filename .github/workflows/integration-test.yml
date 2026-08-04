@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       ref:
-        description: "Commit or branch to test. Defaults to the commit the run started at."
+        description: 'Git reference (branch, tag, or SHA) to checkout and test'
         required: false
         type: string
         default: ""

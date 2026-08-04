@@ -36,12 +36,12 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: "Branch to release from, independent of the branch this workflow is dispatched on. Anything other than the default branch takes patch releases only."
+        description: 'Branch to release from (non-default branches take patch releases only)'
         type: string
         default: main
         required: true
       version-type:
-        description: "Which part of the version to bump. 'auto' derives it from the istio version change and the conventional commits since the last tag."
+        description: 'Which part of the version to bump (auto reads the istio version and conventional commits)'
         type: choice
         options:
           - auto
@@ -52,16 +52,16 @@ on:
         default: auto
         required: true
       version:
-        description: "Explicit release version, for example 1.1.0. Read only when version-type is 'explicit'."
+        description: 'Release version (e.g., 1.1.0), used when version-type is explicit'
         type: string
         required: false
         default: ""
       dry-run:
-        description: "Resolve and build without pushing the tag, the image, or the release page."
+        description: 'Dry run'
         type: boolean
         default: false
       skip-tests:
-        description: "Skip the integration matrix. Speeds up a rehearsal; a real release then ships untested."
+        description: 'Skip tests'
         type: boolean
         default: false
 

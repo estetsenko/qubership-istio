@@ -20,17 +20,27 @@ on:
   workflow_call:
     inputs:
       version:
-        description: "qubership-istio release version, for example 1.1.0. Empty for dev builds."
+        description: 'Release version (e.g., 1.1.0), empty for dev builds'
         required: false
         type: string
         default: ""
       ref:
-        description: "Commit or branch to build. Defaults to the commit the run started at."
+        description: 'Git reference (branch, tag, or SHA) to checkout and build'
         required: false
         type: string
         default: ""
       dry-run:
-        description: "Build without pushing the image."
+        description: 'Run docker build in dry-run mode (no push)'
+        required: false
+        type: boolean
+        default: false
+      latest:
+        description: 'Tag the release image latest (default branch only)'
+        required: false
+        type: boolean
+        default: false
+      skip-tests:
+        description: 'Skip tests'
         required: false
         type: boolean
         default: false
@@ -47,7 +57,7 @@ on:
   workflow_dispatch:
     inputs:
       skip-tests:
-        description: "Skip the integration matrix"
+        description: 'Skip tests'
         type: boolean
         default: false
   push:
