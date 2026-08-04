@@ -34,6 +34,11 @@ on:
         required: false
         type: boolean
         default: false
+      latest:
+        description: "Tag the release image `latest`. False for a maintenance line, which must not move `latest` off the newest release."
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
   push:
     branches:
@@ -90,6 +95,7 @@ jobs:
         id: version
         env:
           RELEASE_VERSION: ${{ inputs.version }}
+          MARK_LATEST: ${{ inputs.latest }}
           # A fork cannot write packages, and renovate images are not wanted in
           # the registry. Both are built, neither is published.
           FORCE_DRY_RUN: ${{ inputs.dry-run || (github.event_name == 'pull_request') || (github.actor == 'renovate[bot]') }}
@@ -104,7 +110,12 @@ jobs:
             # the primary tag; the istio alias keeps the bundled istio version
             # visible in the registry listing.
             CHART_VERSION="${RELEASE_VERSION}"
-            IMAGE_TAGS="${RELEASE_VERSION},${RELEASE_VERSION%.*},latest,${RELEASE_VERSION}-istio${ISTIO_VERSION}"
+            IMAGE_TAGS="${RELEASE_VERSION},${RELEASE_VERSION%.*},${RELEASE_VERSION}-istio${ISTIO_VERSION}"
+            # `latest` follows the newest release only. A patch cut from a
+            # maintenance line is older than the tip, so it must not claim it.
+            if [ "${MARK_LATEST}" = "true" ]; then
+              IMAGE_TAGS="${IMAGE_TAGS},latest"
+            fi
           else
             # Dev build. Helm requires a SemVer chart version, so the branch
             # name goes into a prerelease segment with unsupported characters
