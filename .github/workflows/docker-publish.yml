@@ -196,6 +196,13 @@ jobs:
             }]
           checkout: true
           ref: ${{ inputs.ref }}
+          # `ref` is a commit SHA on the release path, so the action's checkout
+          # lands on a detached HEAD. The hub defaults this to `git`, which makes
+          # docker/metadata-action read the local repo to infer a branch and fail
+          # with "Cannot infer ref from detached HEAD". `workflow` reads
+          # GITHUB_REF instead. Its output is discarded either way, because the
+          # tags below are explicit.
+          context: workflow
           download-artifact: true
           download-artifact-name: helm-templates
           download-artifact-path: ./helm-templates/qubership-istio/
