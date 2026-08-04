@@ -9,11 +9,13 @@
 #   istio major bump  -> qubership major bump
 #   istio minor bump  -> qubership minor bump
 #   istio patch bump  -> qubership patch bump
-#   qubership-only change -> patch, or minor for a new capability
+#   feat! or BREAKING CHANGE -> major
+#   feat                     -> minor
+#   anything else            -> patch
 #
-# The `auto` version type reads that rule off the istio chart dependency in
-# helm-templates/qubership-istio/Chart.yaml, comparing the dispatched commit
-# against the previous release tag.
+# The `auto` version type reads both signals since the previous tag — the istio
+# chart dependency in helm-templates/qubership-istio/Chart.yaml, and the
+# conventional-commit prefixes of the commits — and takes the stronger one.
 #
 # Release tags carry no `v` prefix, matching the existing 1.0.0 and 1.0.1 tags.
 # Every tag-name here is therefore passed explicitly, because the hub actions
@@ -103,29 +105,66 @@ jobs:
 
           BUMP="${VERSION_TYPE}"
 
+          rank() {
+            case "$1" in
+              major) echo 3 ;;
+              minor) echo 2 ;;
+              *)     echo 1 ;;
+            esac
+          }
+
           if [ "${BUMP}" = "auto" ]; then
-            # Derive the bump from the istio chart dependency at the previous
-            # tag. No previous tag, or an unreadable Chart.yaml there, falls
-            # back to patch.
+            # Two independent signals, whichever is stronger wins.
+            #
+            # Signal 1 — the istio chart dependency at the previous tag. No
+            # previous tag, or an unreadable Chart.yaml there, means patch.
             PREV_ISTIO=""
             if [ -n "${LATEST_TAG}" ]; then
               PREV_ISTIO="$(git show "${LATEST_TAG}:${CHART}" 2>/dev/null | yq e '.dependencies[0].version' - 2>/dev/null || true)"
             fi
 
             if [ -z "${PREV_ISTIO}" ] || [ "${PREV_ISTIO}" = "null" ] || [ "${PREV_ISTIO}" = "${ISTIO_VERSION}" ]; then
-              BUMP="patch"
-              echo "::notice::Istio stayed at ${ISTIO_VERSION}. Bumping the patch part."
+              ISTIO_BUMP="patch"
+              echo "::notice::Istio stayed at ${ISTIO_VERSION}."
             else
               IFS='.' read -r P_MAJ P_MIN _ <<< "${PREV_ISTIO}"
               IFS='.' read -r C_MAJ C_MIN _ <<< "${ISTIO_VERSION}"
               if [ "${C_MAJ}" != "${P_MAJ}" ]; then
-                BUMP="major"
+                ISTIO_BUMP="major"
               elif [ "${C_MIN}" != "${P_MIN}" ]; then
-                BUMP="minor"
+                ISTIO_BUMP="minor"
               else
-                BUMP="patch"
+                ISTIO_BUMP="patch"
               fi
-              echo "::notice::Istio moved ${PREV_ISTIO} -> ${ISTIO_VERSION}. Bumping the ${BUMP} part."
+              echo "::notice::Istio moved ${PREV_ISTIO} -> ${ISTIO_VERSION}, which is a ${ISTIO_BUMP} change."
+            fi
+
+            # Signal 2 — conventional commits since the previous tag. A `!`
+            # marker or a BREAKING CHANGE footer means major, a feat means
+            # minor, anything else means patch. Squash merges carry the pull
+            # request title as the subject, so this reads PR titles in practice.
+            RANGE="HEAD"
+            [ -n "${LATEST_TAG}" ] && RANGE="${LATEST_TAG}..HEAD"
+            # Collected up front: piping git log straight into `grep -q` lets
+            # grep exit first, and pipefail would surface git's SIGPIPE as a
+            # failed test rather than a non-match.
+            SUBJECTS="$(git log "${RANGE}" --no-merges --format='%s')"
+            BODIES="$(git log "${RANGE}" --no-merges --format='%B')"
+
+            if grep -qE '^[a-zA-Z]+(\([^)]*\))?!:' <<< "${SUBJECTS}" \
+               || grep -qE '^BREAKING[ -]CHANGE:' <<< "${BODIES}"; then
+              COMMIT_BUMP="major"
+            elif grep -qE '^feat(\([^)]*\))?:' <<< "${SUBJECTS}"; then
+              COMMIT_BUMP="minor"
+            else
+              COMMIT_BUMP="patch"
+            fi
+            echo "::notice::Commits since ${LATEST_TAG:-the first commit} are a ${COMMIT_BUMP} change."
+
+            if [ "$(rank "${COMMIT_BUMP}")" -gt "$(rank "${ISTIO_BUMP}")" ]; then
+              BUMP="${COMMIT_BUMP}"
+            else
+              BUMP="${ISTIO_BUMP}"
             fi
           fi
 
@@ -155,6 +194,10 @@ jobs:
           {
             echo "**Previous tag**: ${LATEST_TAG:-none}"
             echo "**Istio version**: ${ISTIO_VERSION}"
+            if [ "${VERSION_TYPE}" = "auto" ]; then
+              echo "**Istio signal**: ${ISTIO_BUMP}"
+              echo "**Commit signal**: ${COMMIT_BUMP}"
+            fi
             echo "**Bump**: ${BUMP}"
             echo "**New version**: ${NEW_VERSION}"
           } >> "$GITHUB_STEP_SUMMARY"
