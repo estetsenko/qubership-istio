@@ -5,7 +5,7 @@ type: application
 # Placeholders. The build stamps `version` with the qubership-istio release
 # version (or `0.0.0-<branch>` for a dev build) and `appVersion` with the
 # bundled istio version. See .github/workflows/docker-publish.yml.
-version: 0.0.1
+version: 0.0.0
 appVersion: "1.29.4"
 dependencies:
   - name: base

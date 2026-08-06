@@ -57,11 +57,11 @@ on:
         required: false
         default: ""
       dry-run:
-        description: 'Dry run'
+        description: 'dry run'
         type: boolean
         default: false
       skip-tests:
-        description: 'Skip tests'
+        description: 'skip tests'
         type: boolean
         default: false
 
