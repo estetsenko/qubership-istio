@@ -24,10 +24,6 @@
 # The `auto` version type reads both signals since the previous tag — the istio
 # chart dependency in helm-templates/qubership-istio/Chart.yaml, and the
 # conventional-commit prefixes of the commits — and takes the stronger one.
-#
-# Release tags carry no `v` prefix, matching the existing 1.0.0 and 1.0.1 tags.
-# Every tag-name here is therefore passed explicitly, because the hub actions
-# default to `v<version>`.
 
 name: Release
 run-name: "Release ${{ inputs.branch }} (${{ inputs.version-type }})${{ inputs.dry-run && ' - dry run' || '' }}${{ inputs.skip-tests && ' - no tests' || '' }} by ${{ github.actor }}"
@@ -222,20 +218,6 @@ jobs:
             IS_DEFAULT_BRANCH=false
           fi
 
-          # BUMP already holds the resolved bump, so this one check covers an
-          # explicitly requested major or minor and an auto run whose signals
-          # resolved to one. Releasing a patch instead would ship a breaking or
-          # feature change under a version that promises neither, so this fails
-          # rather than quietly downgrading.
-          if [ "${IS_DEFAULT_BRANCH}" = false ] && [ "${BUMP}" != "patch" ] && [ "${BUMP}" != "explicit" ]; then
-            if [ "${VERSION_TYPE}" = "auto" ]; then
-              echo "::error::Changes since ${LATEST_TAG:-the first commit} amount to a ${BUMP} release, which '${BRANCH}' cannot cut — it is a maintenance branch and takes patch releases only. Release from '${DEFAULT_BRANCH}', or keep ${BUMP}-level changes off '${BRANCH}'."
-            else
-              echo "::error::'${BRANCH}' is a maintenance branch and takes patch releases only. Cut a ${BUMP} release from '${DEFAULT_BRANCH}'."
-            fi
-            exit 1
-          fi
-
           case "${BUMP}" in
             explicit)
               if [ -z "${EXPLICIT_VERSION}" ]; then
@@ -258,12 +240,21 @@ jobs:
             exit 1
           fi
 
-          # Catches an explicit version that would open a new line off a
-          # maintenance branch, which the version-type gate above cannot see.
+          # Only the default branch opens a new major or minor line. Testing the
+          # resolved version rather than the requested bump covers every route
+          # to one: an explicit major or minor, an auto run whose signals
+          # resolved to one, and a hand-picked version that leaves the line.
+          # Releasing a patch instead would ship a breaking or feature change
+          # under a version promising neither, so this fails rather than
+          # quietly downgrading.
           if [ "${IS_DEFAULT_BRANCH}" = false ]; then
             IFS='.' read -r N_MAJ N_MIN _ <<< "${NEW_VERSION}"
             if [ "${N_MAJ}" != "${MAJOR}" ] || [ "${N_MIN}" != "${MINOR}" ]; then
-              echo "::error::'${BRANCH}' is a maintenance branch, so '${NEW_VERSION}' must stay on ${MAJOR}.${MINOR}.x. Cut it from '${DEFAULT_BRANCH}' instead."
+              if [ "${VERSION_TYPE}" = "auto" ]; then
+                echo "::error::Changes since ${LATEST_TAG:-the first commit} amount to a ${BUMP} release (${NEW_VERSION}), but '${BRANCH}' is a maintenance branch and stays on ${MAJOR}.${MINOR}.x. Release from '${DEFAULT_BRANCH}', or keep ${BUMP}-level changes off '${BRANCH}'."
+              else
+                echo "::error::'${BRANCH}' is a maintenance branch and stays on ${MAJOR}.${MINOR}.x, so it cannot cut ${NEW_VERSION}. Release it from '${DEFAULT_BRANCH}' instead."
+              fi
               exit 1
             fi
           fi
@@ -370,11 +361,7 @@ jobs:
     with:
       version: ${{ needs.resolve-version.outputs.version }}
       tag: ${{ needs.resolve-version.outputs.version }}
-      # Without this the reusable defaults to main, and the notes would be
-      # drafted from a branch other than the one being released.
       ref: ${{ inputs.branch }}
-      publish: "true"
-      # A maintenance release is older than the tip, so it must not take the
-      # "Latest" badge from the newest release.
+      publish: "false"
       latest: ${{ needs.resolve-version.outputs.is-default-branch }}
       config-name: release-drafter-config.yml
