@@ -29,13 +29,13 @@ on:
         required: false
         type: string
         default: ""
-      dry-run:
-        description: 'Run docker build in dry-run mode (no push)'
+      latest:
+        description: 'Tag the release image latest (default branch only)'
         required: false
         type: boolean
         default: false
-      latest:
-        description: 'Tag the release image latest (default branch only)'
+      dry-run:
+        description: 'dry run'
         required: false
         type: boolean
         default: false
@@ -160,12 +160,11 @@ jobs:
             echo "**Integration tests**: ${TESTS_STATE}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Stamp Chart.yaml version and appVersion
+      - name: Stamp Chart.yaml version
         env:
           CHART_VERSION: ${{ steps.version.outputs.chart-version }}
-          ISTIO_VERSION: ${{ steps.version.outputs.istio-version }}
         run: |
-          yq e -i '.version = strenv(CHART_VERSION) | .appVersion = strenv(ISTIO_VERSION)' \
+          yq e -i '.version = strenv(CHART_VERSION)' \
             helm-templates/qubership-istio/Chart.yaml
 
       - name: Install Helm 4
@@ -250,4 +249,4 @@ jobs:
           registry: ghcr.io
           dry-run: ${{ needs.helm-charts-build.outputs.dry-run }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
